@@ -11,4 +11,5 @@ function App() {
   );
 }
 
-export default App;
+export default App;cd /Users/siddhu/Desktop/Projects/SmartHealthAI
+find . -name "HowItWorks.jsx"
