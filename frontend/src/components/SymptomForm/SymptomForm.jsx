@@ -1,133 +1,176 @@
 import { useState } from "react";
+import {
+  FaUser,
+  FaHeartbeat,
+  FaCalendarAlt,
+  FaStethoscope,
+  FaSpinner,
+} from "react-icons/fa";
 
 function SymptomForm({ setReport }) {
-  const [symptom, setSymptom] = useState("");
+  const [symptoms, setSymptoms] = useState("");
+  const [age, setAge] = useState("");
+  const [gender, setGender] = useState("Male");
+  const [severity, setSeverity] = useState(3);
+  const [duration, setDuration] = useState("1 Day");
   const [loading, setLoading] = useState(false);
 
-  function analyzeSymptoms() {
-    if (symptom.trim() === "") {
+  const analyzeSymptoms = () => {
+    if (!symptoms.trim()) {
       alert("Please enter your symptoms.");
       return;
     }
 
     setLoading(true);
 
-    // Simulate AI processing
     setTimeout(() => {
-      let report = {};
+      setReport({
+        priority: severity >= 4 ? "High" : "Medium",
+        department: "Cardiology",
+        hospital: "Apollo Hospitals",
+        reason:
+          "Chest pain may indicate a cardiac condition. Immediate evaluation is recommended.",
+        waitTime: "12 Minutes",
+        confidence: "96%",
+        risk: "High",
+      });
 
-      const text = symptom.toLowerCase();
-
-      if (
-        text.includes("chest") ||
-        text.includes("heart") ||
-        text.includes("pain")
-      ) {
-        report = {
-          priority: "High",
-          department: "Cardiology",
-          hospital: "Apollo Hospitals",
-          reason:
-            "Chest pain may indicate a cardiac condition. Immediate evaluation is recommended.",
-          waitTime: "12 Minutes",
-          distance: "3.2 km",
-          queue: "14 Patients",
-        };
-      } else if (
-        text.includes("headache") ||
-        text.includes("migraine")
-      ) {
-        report = {
-          priority: "Medium",
-          department: "Neurology",
-          hospital: "Yashoda Hospitals",
-          reason:
-            "Persistent headaches require neurological evaluation.",
-          waitTime: "18 Minutes",
-          distance: "4.5 km",
-          queue: "10 Patients",
-        };
-      } else if (
-        text.includes("fever") ||
-        text.includes("cold") ||
-        text.includes("cough")
-      ) {
-        report = {
-          priority: "Low",
-          department: "General Medicine",
-          hospital: "KIMS Hospitals",
-          reason:
-            "Common viral symptoms detected.",
-          waitTime: "25 Minutes",
-          distance: "2.1 km",
-          queue: "20 Patients",
-        };
-      } else {
-        report = {
-          priority: "Medium",
-          department: "General Medicine",
-          hospital: "CARE Hospitals",
-          reason:
-            "Further medical evaluation is recommended.",
-          waitTime: "20 Minutes",
-          distance: "3.8 km",
-          queue: "15 Patients",
-        };
-      }
-
-      setReport(report);
       setLoading(false);
     }, 2000);
-  }
+  };
 
   return (
-    <section
-      style={{
-        maxWidth: "900px",
-        margin: "40px auto",
-        padding: "30px",
-        background: "#ffffff",
-        borderRadius: "18px",
-        boxShadow: "0 8px 30px rgba(0,0,0,0.08)",
-      }}
-    >
-      <h2 style={{ color: "#0F4C81" }}>
-        🩺 Describe Your Symptoms
+    <div className="bg-white rounded-3xl shadow-xl p-8">
+      <h2 className="text-3xl font-bold text-slate-800 mb-8">
+        🩺 Patient Information
       </h2>
 
-      <textarea
-        rows="6"
-        placeholder="Example: Chest pain, fever, dizziness..."
-        value={symptom}
-        onChange={(e) => setSymptom(e.target.value)}
-        style={{
-          width: "100%",
-          marginTop: "20px",
-          padding: "15px",
-          borderRadius: "10px",
-          border: "1px solid #ccc",
-          fontSize: "16px",
-          resize: "none",
-        }}
-      />
+      <div className="grid md:grid-cols-2 gap-5">
+        <div>
+          <label className="font-semibold flex items-center gap-2 mb-2">
+            <FaUser />
+            Age
+          </label>
+
+          <input
+            type="number"
+            placeholder="Enter age"
+            value={age}
+            onChange={(e) => setAge(e.target.value)}
+            className="w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="font-semibold mb-2 block">
+            Gender
+          </label>
+
+          <select
+            value={gender}
+            onChange={(e) => setGender(e.target.value)}
+            className="w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+          >
+            <option>Male</option>
+            <option>Female</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="font-semibold flex items-center gap-2 mb-2">
+            <FaCalendarAlt />
+            Duration
+          </label>
+
+          <select
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            className="w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
+          >
+            <option>Today</option>
+            <option>1 Day</option>
+            <option>2 Days</option>
+            <option>1 Week</option>
+            <option>More than 1 Week</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="font-semibold flex items-center gap-2 mb-2">
+            <FaHeartbeat />
+            Severity
+          </label>
+
+          <input
+            type="range"
+            min="1"
+            max="5"
+            value={severity}
+            onChange={(e) => setSeverity(e.target.value)}
+            className="w-full"
+          />
+
+          <div className="flex justify-between text-sm mt-2 text-slate-500">
+            <span>Mild</span>
+            <span>Moderate</span>
+            <span>Severe</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <label className="font-semibold flex items-center gap-2 mb-2">
+          <FaStethoscope />
+          Describe Symptoms
+        </label>
+
+        <textarea
+          rows="6"
+          placeholder="Example: Chest pain, dizziness, shortness of breath..."
+          value={symptoms}
+          onChange={(e) => setSymptoms(e.target.value)}
+          className="w-full border rounded-2xl p-4 resize-none focus:ring-2 focus:ring-blue-500 outline-none"
+        />
+
+        {/* Quick Symptom Chips */}
+
+        <div className="flex flex-wrap gap-3 mt-4">
+          {[
+            "Chest Pain",
+            "Fever",
+            "Headache",
+            "Cough",
+            "Dizziness",
+            "Vomiting",
+          ].map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setSymptoms(item)}
+              className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded-full transition"
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <button
         onClick={analyzeSymptoms}
         disabled={loading}
-        style={{
-          marginTop: "20px",
-          padding: "14px 30px",
-          background: loading ? "#94a3b8" : "#0F4C81",
-          color: "#fff",
-          border: "none",
-          borderRadius: "10px",
-          fontSize: "16px",
-          cursor: loading ? "not-allowed" : "pointer",
-        }}
+        className="mt-8 w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-lg font-semibold py-4 rounded-2xl transition flex justify-center items-center gap-3"
       >
-        {loading ? "🤖 AI Analyzing..." : "Analyze Symptoms"}
+        {loading ? (
+          <>
+            <FaSpinner className="animate-spin" />
+            AI Analyzing...
+          </>
+        ) : (
+          "Analyze Symptoms"
+        )}
       </button>
-    </section>
+    </div>
   );
 }
 
