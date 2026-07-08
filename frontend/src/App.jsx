@@ -1,14 +1,10 @@
-import Navbar from "./components/Navbar/Navbar";
-import Hero from "./components/Hero/Hero";
-import SymptomForm from "./components/SymptomForm/SymptomForm";
-
 function App() {
   return (
-    <>
-      <Navbar />
-      <Hero />
-      <SymptomForm />
-    </>
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+      <h1 className="text-6xl font-bold text-blue-600">
+        Tailwind Working 🚀
+      </h1>
+    </div>
   );
 }
 
