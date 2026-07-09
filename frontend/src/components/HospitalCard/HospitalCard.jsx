@@ -2,136 +2,77 @@ import {
   FaHospital,
   FaMapMarkerAlt,
   FaClock,
-  FaStar,
   FaPhoneAlt,
   FaRoute,
-  FaBed,
-  FaUsers,
+  FaStethoscope,
 } from "react-icons/fa";
 
 function HospitalCard({ report }) {
   if (!report) return null;
 
+  const openMaps = () => {
+    const hospital = encodeURIComponent(report.hospital);
+    window.open(
+      `https://www.google.com/maps/search/?api=1&query=${hospital}`,
+      "_blank"
+    );
+  };
+
   return (
     <div className="bg-white rounded-3xl shadow-xl p-8">
-
       <div className="flex items-center justify-between mb-8">
         <h2 className="text-3xl font-bold">
           🏥 Recommended Hospital
         </h2>
 
         <span className="bg-green-100 text-green-700 px-4 py-2 rounded-full font-semibold">
-          Best Match
+          AI Recommendation
         </span>
       </div>
 
-      <div className="border rounded-2xl p-6">
+      <div className="space-y-5">
 
-        <div className="flex justify-between items-start">
-
-          <div>
-
-            <h3 className="text-2xl font-bold">
-              {report.hospital}
-            </h3>
-
-            <div className="flex items-center gap-2 mt-2 text-slate-500">
-              <FaMapMarkerAlt />
-              Jubilee Hills, Hyderabad
-            </div>
-
-          </div>
-
-          <div className="flex items-center gap-2 text-yellow-500">
-
-            <FaStar />
-
-            <span className="font-bold text-black">
-              4.8
-            </span>
-
-          </div>
-
+        <div className="flex items-center gap-3">
+          <FaHospital className="text-blue-600 text-xl" />
+          <span className="font-semibold">{report.hospital}</span>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mt-8">
-
-          <div className="bg-slate-100 rounded-xl p-4">
-
-            <div className="flex items-center gap-2 text-blue-600">
-              <FaClock />
-              ETA
-            </div>
-
-            <h3 className="text-2xl font-bold mt-2">
-              12 min
-            </h3>
-
-          </div>
-
-          <div className="bg-slate-100 rounded-xl p-4">
-
-            <div className="flex items-center gap-2 text-green-600">
-              <FaUsers />
-              Queue
-            </div>
-
-            <h3 className="text-2xl font-bold mt-2">
-              14
-            </h3>
-
-          </div>
-
-          <div className="bg-slate-100 rounded-xl p-4">
-
-            <div className="flex items-center gap-2 text-red-500">
-              <FaBed />
-              Beds
-            </div>
-
-            <h3 className="text-2xl font-bold mt-2">
-              8 Available
-            </h3>
-
-          </div>
-
-          <div className="bg-slate-100 rounded-xl p-4">
-
-            <div className="flex items-center gap-2 text-purple-600">
-              <FaHospital />
-              Department
-            </div>
-
-            <h3 className="text-lg font-bold mt-2">
-              {report.department}
-            </h3>
-
-          </div>
-
+        <div className="flex items-center gap-3">
+          <FaStethoscope className="text-green-600" />
+          <span>{report.department}</span>
         </div>
 
-        <div className="flex gap-4 mt-8">
+        <div className="flex items-center gap-3">
+          <FaClock className="text-orange-500" />
+          <span>{report.waitTime || "15 Minutes"}</span>
+        </div>
 
-          <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-semibold flex justify-center items-center gap-2">
-
-            <FaRoute />
-
-            Navigate
-
-          </button>
-
-          <button className="flex-1 border border-slate-300 hover:bg-slate-100 py-4 rounded-xl font-semibold flex justify-center items-center gap-2">
-
-            <FaPhoneAlt />
-
-            Call
-
-          </button>
-
+        <div className="flex items-center gap-3">
+          <FaMapMarkerAlt className="text-red-500" />
+          <span>Hyderabad</span>
         </div>
 
       </div>
 
+      <div className="flex gap-4 mt-8">
+
+        <button
+          onClick={openMaps}
+          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl flex justify-center items-center gap-2"
+        >
+          <FaRoute />
+          Navigate
+        </button>
+
+        <button
+          onClick={() => window.open("tel:108")}
+          className="flex-1 border py-4 rounded-xl flex justify-center items-center gap-2"
+        >
+          <FaPhoneAlt />
+          Emergency
+        </button>
+
+      </div>
     </div>
   );
 }

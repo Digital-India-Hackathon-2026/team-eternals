@@ -2,59 +2,93 @@ import { useState } from "react";
 
 import Navbar from "./components/Navbar/Navbar";
 import Hero from "./components/Hero/Hero";
+
+import PatientJourney from "./components/PatientJourney/PatientJourney";
+
 import SymptomForm from "./components/SymptomForm/SymptomForm";
 import ClinicalReport from "./components/ClinicalReport/ClinicalReport";
+import EmergencyAlert from "./components/EmergencyAlert/EmergencyAlert";
+
 import HospitalCard from "./components/HospitalCard/HospitalCard";
 import MapPreview from "./components/MapPreview/MapPreview";
+
+import WaitTimePrediction from "./components/WaitTimePrediction/WaitTimePrediction";
+import PatientTimeline from "./components/PatientTimeline/PatientTimeline";
+import HospitalDashboard from "./components/HospitalDashboard/HospitalDashboard";
+import AIInsight from "./components/AIInsight/AIInsight";
+import WhyChooseUs from "./components/WhyChooseUs/WhyChooseUs";
+import Footer from "./components/Footer/Footer";
 
 function App() {
   const [report, setReport] = useState(null);
 
   return (
-    <div className="bg-slate-50 min-h-screen">
-
+    <>
       <Navbar />
 
       <Hero />
 
-      <section
-    id="symptom-form"
-    className="max-w-7xl mx-auto px-8 py-16"
->
+      <PatientJourney />
 
-        <div
-    id="hospital-section"
-    className="grid lg:grid-cols-2 gap-8 mt-10"
->
+      <div className="bg-slate-50">
 
-          <SymptomForm setReport={setReport} />
+        <div className="max-w-7xl mx-auto px-8 py-12">
 
-          {report ? (
-            <ClinicalReport report={report} />
-          ) : (
-            <div className="rounded-3xl border-2 border-dashed border-slate-300 bg-white flex items-center justify-center min-h-[450px]">
-              <h2 className="text-slate-400 text-xl">
-                AI Clinical Report will appear here
-              </h2>
-            </div>
+          {/* Patient Form + AI Report */}
+
+          <div className="grid lg:grid-cols-2 gap-8">
+
+            <SymptomForm setReport={setReport} />
+
+            {report && <ClinicalReport report={report} />}
+
+          </div>
+
+          {report && (
+            <>
+              {/* Emergency Alert */}
+
+              <EmergencyAlert report={report} />
+
+              {/* Hospital + Map */}
+
+              <div className="grid lg:grid-cols-2 gap-8 mt-10">
+
+                <HospitalCard report={report} />
+
+                <MapPreview report={report} />
+
+              </div>
+
+              {/* Wait Prediction */}
+
+              <WaitTimePrediction report={report} />
+
+              {/* Patient Timeline */}
+
+              <PatientTimeline report={report} />
+
+              {/* Hospital Dashboard */}
+
+              <HospitalDashboard />
+
+              {/* AI Insights */}
+
+              <AIInsight />
+
+            </>
           )}
 
-        </div>
+          {/* Why Choose Us */}
 
-        <div
-    id="hospital-section"
-    className="grid lg:grid-cols-2 gap-8 mt-10"
->
-
-          {report && <HospitalCard report={report} />}
-
-          {report && <MapPreview />}
+          <WhyChooseUs />
 
         </div>
 
-      </section>
+      </div>
 
-    </div>
+      <Footer />
+    </>
   );
 }
 

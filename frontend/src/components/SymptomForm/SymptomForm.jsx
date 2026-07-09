@@ -15,29 +15,43 @@ function SymptomForm({ setReport }) {
   const [duration, setDuration] = useState("1 Day");
   const [loading, setLoading] = useState(false);
 
-  const analyzeSymptoms = () => {
-    if (!symptoms.trim()) {
-      alert("Please enter your symptoms.");
-      return;
+  const analyzeSymptoms = async () => {
+  if (!symptoms.trim()) {
+    alert("Please enter your symptoms.");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const response = await fetch("http://localhost:5001/api/analyze", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        symptoms,
+        age,
+        gender,
+        severity,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to analyze symptoms");
     }
 
-    setLoading(true);
+    const data = await response.json();
 
-    setTimeout(() => {
-      setReport({
-        priority: severity >= 4 ? "High" : "Medium",
-        department: "Cardiology",
-        hospital: "Apollo Hospitals",
-        reason:
-          "Chest pain may indicate a cardiac condition. Immediate evaluation is recommended.",
-        waitTime: "12 Minutes",
-        confidence: "96%",
-        risk: "High",
-      });
+    setReport(data);
 
-      setLoading(false);
-    }, 2000);
-  };
+  } catch (error) {
+    console.error(error);
+    alert("Unable to analyze symptoms.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="bg-white rounded-3xl shadow-xl p-8">
