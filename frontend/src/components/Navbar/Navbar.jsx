@@ -45,7 +45,7 @@ function Navbar() {
               SmartHealthAI
             </p>
             <p className="text-xs text-slate-400 font-semibold leading-tight mt-0.5">
-              AI Clinical Triage
+              Clinical Care Guidance
             </p>
           </div>
         </Link>

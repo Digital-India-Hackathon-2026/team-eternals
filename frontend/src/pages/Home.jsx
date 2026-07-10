@@ -45,7 +45,7 @@ const features = [
     color: "bg-amber-500",
     title: "Wait Time Prediction",
     description:
-      "CrowdPulse AI predicts queue lengths and waiting times before you even leave home, so you can plan your hospital visit confidently.",
+      "SmartHealthAI calculates queue lengths and waiting times before you even leave home, so you can plan your hospital visit confidently.",
     link: "/patient",
     cta: "Check Wait Times",
   },
@@ -127,9 +127,9 @@ export default function Home() {
             className="mt-8 mx-auto max-w-3xl text-xl leading-8 text-blue-100 animate-fade-in-up"
             style={{ animationDelay: "160ms" }}
           >
-            CrowdPulse AI predicts hospital wait times, routes patients to the
-            right department, and digitizes hospital reception — so
-            patients plan with confidence and hospitals operate with clarity.
+            SmartHealthAI coordinates hospital wait times, guides patients to the
+            right department, and simplifies hospital reception — so
+            families plan with confidence and clinics operate with clarity.
           </p>
 
           <div
@@ -203,7 +203,7 @@ export default function Home() {
           <div className="text-center mb-16">
             <span className="section-chip">Simple Process</span>
             <h2 className="mt-6 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
-              How CrowdPulse AI works
+              How SmartHealthAI works
             </h2>
             <p className="mt-5 mx-auto max-w-2xl text-lg leading-8 text-slate-600">
               Three steps from symptoms to your seat in the right department.

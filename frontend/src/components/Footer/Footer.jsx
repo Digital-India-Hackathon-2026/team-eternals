@@ -21,11 +21,11 @@ function Footer() {
               </div>
               <div>
                 <p className="text-xl font-black text-white leading-none">SmartHealthAI</p>
-                <p className="text-xs text-slate-400 font-semibold mt-0.5">AI Clinical Triage Platform</p>
+                <p className="text-xs text-slate-400 font-semibold mt-0.5">Clinical Care & Triage Guidance</p>
               </div>
             </Link>
             <p className="mt-6 max-w-sm text-sm leading-7 text-slate-400">
-              CrowdPulse AI by Team Eternals — Digital India Hackathon 2026.
+              SmartHealthAI by Team Eternals — Digital India Hackathon 2026.
               Transforming hospital waiting from uncertainty into confident, predictable healthcare access.
             </p>
             <a
@@ -60,7 +60,7 @@ function Footer() {
             © 2026 Team Eternals · Digital India Hackathon
           </p>
           <p className="text-xs text-slate-500">
-            Built with React · Node.js · Gemini AI
+            Built with React · Node.js · Intelligent Care Routing
           </p>
         </div>
       </div>

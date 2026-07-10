@@ -129,10 +129,11 @@ function Field({ id, label, icon: Icon, error, children }) {
 // ═════════════════════════════════════════════════════════════════════════════
 // STEP 1 — Patient Registration
 // ═════════════════════════════════════════════════════════════════════════════
-function StepPatientDetails({ onNext }) {
+function StepPatientDetails({ onNext, onEmergencyTrigger }) {
   const [form, setForm] = useState({ name: "", age: "", gender: "Male", mobile: "" });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [emergencyMode, setEmergencyMode] = useState(false);
 
   const validate = () => {
     const e = {};
@@ -160,9 +161,80 @@ function StepPatientDetails({ onNext }) {
 
 
 
+  if (emergencyMode) {
+    const emergencyOptions = [
+      { reason: "Chest Pain / Heart Issue", dept: "Cardiology", icon: "🫀" },
+      { reason: "Road Accident / Trauma", dept: "Orthopedics", icon: "🚗" },
+      { reason: "Breathing Difficulty", dept: "Emergency", icon: "🫁" },
+      { reason: "Stroke / Numbness", dept: "Neurology", icon: "🧠" },
+      { reason: "Other Medical Emergency", dept: "Emergency", icon: "⚠️" },
+    ];
+    return (
+      <div className="max-w-2xl mx-auto animate-fade-in-up">
+        <div className="bg-red-700 px-6 py-5 rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
+              <FaAmbulance className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-white">Emergency Assistance</h2>
+              <p className="text-sm text-red-100 font-medium">Select primary complaint for instant routing</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white border-x border-b border-slate-200 rounded-b-2xl p-6 space-y-6 shadow-lg">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {emergencyOptions.map((opt) => (
+              <button
+                key={opt.reason}
+                type="button"
+                onClick={() => onEmergencyTrigger(opt.reason, opt.dept)}
+                className="flex items-center gap-4 rounded-2xl border-2 border-red-100 bg-red-50/30 p-4 text-left transition hover:border-red-500 hover:bg-red-50 hover:-translate-y-0.5 active:translate-y-0 shadow-sm"
+              >
+                <span className="text-3xl">{opt.icon}</span>
+                <div>
+                  <p className="font-black text-slate-900 text-sm">{opt.reason}</p>
+                  <p className="text-[10px] font-black uppercase text-red-600 tracking-wider">Fast-track: {opt.dept}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setEmergencyMode(false)}
+            className="w-full text-center text-xs font-black text-slate-500 hover:text-slate-800 transition"
+          >
+            ← Back to Registration Details
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-2xl mx-auto animate-fade-in-up">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Quick Emergency Triage Access */}
+      <div className="rounded-2xl border-2 border-red-200 bg-red-50 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm animate-fade-in-up">
+        <div className="flex items-center gap-3.5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-600 text-white shadow-md animate-pulse">
+            <FaAmbulance size={18} />
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-red-800">Critical Medical Emergency?</h3>
+            <p className="text-xs text-red-600 font-semibold mt-0.5">Skip chat & forms. Direct routing to nearest ICU/Beds.</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setEmergencyMode(true)}
+          className="rounded-xl bg-red-600 px-5 py-2.5 text-xs font-black text-white hover:bg-red-700 transition shrink-0 shadow-lg shadow-red-100 hover:-translate-y-0.5 active:translate-y-0"
+        >
+          Fast-Track Emergency
+        </button>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden animate-fade-in-up">
         <div className="bg-blue-600 px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
@@ -343,8 +415,8 @@ function StepSymptomChat({ patient, onComplete }) {
               <FaRobot className="text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-white">AI Symptom Assessment</h2>
-              <p className="text-sm text-indigo-200 font-medium">Powered by Qwen 2.5 7B Clinical AI</p>
+              <h2 className="text-lg font-black text-white">Symptom & Department Guide</h2>
+              <p className="text-sm text-indigo-200 font-medium">Assisting you with clinical care coordination</p>
             </div>
           </div>
         </div>
@@ -389,7 +461,7 @@ function StepSymptomChat({ patient, onComplete }) {
                 disabled={!primarySymptom.trim()}
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3.5 text-sm font-black text-white transition hover:bg-indigo-700 disabled:opacity-40"
               >
-                <FaBrain /> Start AI Assessment
+                <FaBrain /> Start Symptom Guidance
               </button>
             </div>
           )}
@@ -468,7 +540,7 @@ function StepTriageResult({ triage, primarySymptom, onNext }) {
       {/* Priority card */}
       <div className={`rounded-2xl border-2 p-6 ${priorityBg[triage.priority] || "border-slate-200 bg-white"}`}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-black text-slate-900">AI Triage Result</h2>
+          <h2 className="text-lg font-black text-slate-900">Department Recommendation</h2>
           <PriorityBadge priority={triage.priority} />
         </div>
 
@@ -521,7 +593,7 @@ function StepTriageResult({ triage, primarySymptom, onNext }) {
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
         <FaShieldAlt className="text-amber-500 mt-0.5 shrink-0" size={14} />
         <p className="text-xs font-semibold text-amber-700 leading-relaxed">
-          <strong>AI Disclaimer:</strong> This is an AI-assisted recommendation and not a medical diagnosis. Always consult a qualified healthcare professional.
+          <strong>Important Guidance Note:</strong> This assessment is designed to help guide you to the right department. Always seek immediate professional medical attention for any serious or worsening condition.
         </p>
       </div>
 
@@ -635,7 +707,7 @@ function StepNearbyHospitals({ triage, userLocation, hospitals, selectedHospital
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="text-sm font-black text-slate-900">{h.name}</h3>
                         {isRecommended && (
-                          <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-black text-white">⭐ AI Pick</span>
+                          <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-black text-white">⭐ Best Match</span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -946,6 +1018,30 @@ export default function Patient() {
     }
   }, []);
 
+  const handleEmergencyTrigger = (reason, department) => {
+    const form = {
+      name: "Emergency Patient",
+      age: "Unspecified",
+      gender: "Unspecified",
+      mobile: "Unspecified"
+    };
+    setPatient(form);
+    setSymptomData({
+      primarySymptom: reason,
+      messages: [{ role: "user", content: `EMERGENCY ALERT: ${reason}` }],
+      triage: {
+        priority: "Critical",
+        department: department || "Emergency",
+        confidence: "99%",
+        waitTime: "Immediate",
+        summary: `CRITICAL TRAUMA/EMERGENCY: Patient reported a severe case of "${reason}". Skip wait queues and proceed directly to emergency services.`,
+        diagnoses: ["Immediate clinical stabilization required"],
+        tests: ["Trauma Assessment", "ECG / Vitals Monitoring"],
+      }
+    });
+    setStep(3); // Skip Chat directly to Triage
+  };
+
   // Step 1 → 2
   const handlePatientNext = (form) => {
     setPatient(form);
@@ -1027,7 +1123,7 @@ export default function Patient() {
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         {/* Step 1 */}
         {step === 1 && (
-          <StepPatientDetails onNext={handlePatientNext} />
+          <StepPatientDetails onNext={handlePatientNext} onEmergencyTrigger={handleEmergencyTrigger} />
         )}
 
         {/* Step 2 */}
