@@ -1,4 +1,13 @@
+import { NavLink } from "react-router-dom";
 import { FaHeartbeat } from "react-icons/fa";
+
+const navItems = [
+  { label: "Home", path: "/" },
+  { label: "Patient", path: "/patient" },
+  { label: "Hospital", path: "/hospital" },
+  { label: "Government", path: "/government" },
+  { label: "About", path: "/about" },
+];
 
 function Navbar() {
   return (
@@ -33,33 +42,18 @@ function Navbar() {
         {/* Menu */}
 
         <nav className="hidden md:flex gap-10 text-slate-700 font-medium">
-
-          <a href="#" className="hover:text-blue-600 transition">
-            Home
-          </a>
-
-          <a
-            href="#symptom-form"
-            className="hover:text-blue-600 transition"
-          >
-            Symptoms
-          </a>
-
-          <a
-            href="#hospital-section"
-            className="hover:text-blue-600 transition"
-          >
-            Hospitals
-          </a>
-
-          <a href="#" className="hover:text-red-500 transition">
-            Emergency
-          </a>
-
-          <a href="#" className="hover:text-blue-600 transition">
-            About
-          </a>
-
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) =>
+                `hover:text-blue-600 transition ${isActive ? "text-blue-600" : ""}`
+              }
+              end={item.path === "/"}
+            >
+              {item.label}
+            </NavLink>
+          ))}
         </nav>
 
         {/* Button */}
