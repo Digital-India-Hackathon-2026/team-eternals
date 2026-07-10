@@ -73,3 +73,23 @@ export function fetchReceptionStats() {
 export function fetchHospitalDashboard() {
   return request("/hospital/dashboard");
 }
+
+// -----------------------------------------------
+// Patient — Register Details (Step 1)
+// -----------------------------------------------
+export function registerPatientDetails({ name, age, gender, mobile }) {
+  return request("/patient/register", {
+    method: "POST",
+    body: JSON.stringify({ name, age, gender, mobile }),
+  });
+}
+
+// -----------------------------------------------
+// Patient — Book Hospital (Step 6)
+// -----------------------------------------------
+export function bookHospital({ patientName, age, mobile, gender, hospitalId, hospitalName, hospitalType, department, priority, symptoms, aiSummary }) {
+  return request("/patient/book", {
+    method: "POST",
+    body: JSON.stringify({ patientName, age, mobile, gender, hospitalId, hospitalName, hospitalType, department, priority, symptoms, aiSummary }),
+  });
+}

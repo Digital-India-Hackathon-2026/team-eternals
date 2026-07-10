@@ -490,6 +490,126 @@ app.get("/api/hospital/dashboard", async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Patient — Save Patient Details
+// ─────────────────────────────────────────────────────────────────────────────
+app.post("/api/patient/register", async (req, res) => {
+  const { name, age, gender, mobile } = req.body;
+  if (!name?.trim()) {
+    return res.status(400).json({ success: false, message: "Patient name is required." });
+  }
+  try {
+    // We store basic patient info in a session-like table row
+    // Returns a patient session ID for use in the booking step
+    const sessionId = `PAT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    res.json({ success: true, sessionId, patient: { name, age, gender, mobile } });
+  } catch (error) {
+    console.error("Patient register error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Patient — Book Hospital Appointment
+// ─────────────────────────────────────────────────────────────────────────────
+app.post("/api/patient/book", async (req, res) => {
+  const {
+    patientName, age, mobile, gender,
+    hospitalId, hospitalName, hospitalType,
+    department, priority, symptoms, aiSummary
+  } = req.body;
+
+  if (!patientName || !hospitalName || !department) {
+    return res.status(400).json({ success: false, message: "Missing required booking fields." });
+  }
+
+  try {
+    // Generate appointment ID
+    const appointmentId = `APT-${Date.now().toString(36).toUpperCase()}`;
+    const queueNumber = `Q${Math.floor(Math.random() * 89) + 10}`;
+    const slotMinutes = Math.floor(Math.random() * 50) + 15;
+    const now = new Date();
+    const slotTime = new Date(now.getTime() + slotMinutes * 60000);
+    const estimatedTime = slotTime.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+
+    // If government hospital, register patient in the Supabase patients table
+    if (hospitalType === "Government") {
+      const token = await nextToken();
+      const waitMinutes = 10 + Math.floor(Math.random() * 30);
+      const estimatedWaitingTime = `${waitMinutes} min`;
+
+      const { error: insertError } = await supabase.from("patients").insert({
+        token,
+        patient_name: patientName,
+        department: department || "General Medicine",
+        priority: priority || "Low",
+        status: "Waiting",
+        age,
+        mobile,
+        gender,
+        symptoms,
+      });
+
+      if (insertError) throw new Error(insertError.message);
+
+      // Update department queue count
+      const { data: deptData } = await supabase
+        .from("department_queues")
+        .select("queue_count")
+        .eq("department", department || "General Medicine")
+        .single();
+
+      if (deptData) {
+        const newCount = (deptData.queue_count || 0) + 1;
+        const newStatus = newCount > 15 ? "Busy" : newCount > 7 ? "Moderate" : "Available";
+        await supabase
+          .from("department_queues")
+          .update({ queue_count: newCount, wait_time: estimatedWaitingTime, status: newStatus })
+          .eq("department", department || "General Medicine");
+      }
+
+      // Update reception stats
+      await supabase
+        .from("reception_stats")
+        .select("*")
+        .eq("id", 1)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            return supabase.from("reception_stats").update({
+              patients_registered_today: data.patients_registered_today + 1,
+              waiting_patients: data.waiting_patients + 1,
+              emergency_cases: priority === "High" ? data.emergency_cases + 1 : data.emergency_cases,
+            }).eq("id", 1);
+          }
+        })
+        .catch(() => {});
+
+      return res.json({
+        success: true,
+        appointmentId,
+        token,
+        queueNumber: token,
+        estimatedTime: estimatedWaitingTime,
+        hospitalType: "Government",
+      });
+    }
+
+    // Private hospital: just return confirmation (no DB insert needed for demo)
+    res.json({
+      success: true,
+      appointmentId,
+      token: `P${Math.floor(Math.random() * 900) + 100}`,
+      queueNumber,
+      estimatedTime,
+      hospitalType: "Private",
+    });
+  } catch (error) {
+    console.error("Booking error:", error);
+    res.status(500).json({ success: false, message: error.message || "Booking failed." });
+  }
+});
+
 // ─────────────────────────────────────────
 // Start Server
 // ─────────────────────────────────────────

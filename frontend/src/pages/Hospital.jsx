@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import {
   fetchHospitalDashboard,
   fetchQueue,
@@ -14,16 +15,42 @@ import {
   FaAmbulance,
   FaBrain,
   FaSearch,
+  FaQrcode,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaHeartbeat,
+  FaCalendarAlt,
+  FaPhone,
+  FaVenusMars,
+  FaSpinner,
+  FaSync,
 } from "react-icons/fa";
+import { MdEmergency, MdLocalHospital } from "react-icons/md";
 
 // ─── Badge helper ─────────────────────────────────────────────────────────────
 function statusBadge(value) {
   const v = String(value).toLowerCase();
-  if (v.includes("high") || v.includes("busy") || v.includes("emergency"))
+  if (v.includes("high") || v.includes("critical") || v.includes("busy") || v.includes("emergency"))
     return "bg-red-50 text-red-700 ring-1 ring-red-100";
   if (v.includes("medium") || v.includes("moderate") || v.includes("waiting") || v.includes("consultation"))
     return "bg-amber-50 text-amber-700 ring-1 ring-amber-100";
   return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100";
+}
+
+// ─── Priority pill ────────────────────────────────────────────────────────────
+function PriorityPill({ priority }) {
+  const cfg = {
+    Critical: "bg-red-600 text-white",
+    High: "bg-orange-500 text-white",
+    Medium: "bg-yellow-500 text-white",
+    Low: "bg-emerald-500 text-white",
+  };
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${cfg[priority] || "bg-slate-400 text-white"}`}>
+      {(priority === "Critical" || priority === "High") && <MdEmergency size={12} />}
+      {priority}
+    </span>
+  );
 }
 
 // ─── TABS ─────────────────────────────────────────────────────────────────────
@@ -33,9 +60,99 @@ const TABS = [
   { key: "government",  label: "Government Reception",  icon: FaUserMd    },
 ];
 
+// ─── INCOMING PATIENT CARD (reusable, rich) ───────────────────────────────────
+function IncomingPatientCard({ patient, hospitalType, onDismiss }) {
+  if (!patient) return null;
+  const isEmergency = patient.priority === "High" || patient.priority === "Critical";
+
+  return (
+    <div className={`rounded-2xl border-2 p-6 animate-fade-in-up mb-6 ${isEmergency ? "border-red-300 bg-red-50" : "border-emerald-200 bg-emerald-50"}`}>
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${isEmergency ? "bg-red-500" : "bg-emerald-500"} text-white shadow-lg`}>
+            {isEmergency ? <FaAmbulance size={20} /> : <FaCheckCircle size={20} />}
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className={`text-sm font-black uppercase tracking-wide ${isEmergency ? "text-red-700" : "text-emerald-700"}`}>
+                {isEmergency ? "🚨 Emergency Patient" : "✅ New Appointment"} — via SmartHealthAI
+              </p>
+              {isEmergency && (
+                <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-black text-white animate-pulse">
+                  URGENT
+                </span>
+              )}
+            </div>
+            <p className={`text-2xl font-black mt-0.5 ${isEmergency ? "text-red-900" : "text-emerald-900"}`}>
+              {patient.patientName}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onDismiss}
+          className={`text-xl font-black hover:scale-110 transition ${isEmergency ? "text-red-400 hover:text-red-600" : "text-emerald-400 hover:text-emerald-600"}`}
+        >
+          ×
+        </button>
+      </div>
+
+      {/* Detail grid */}
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {[
+          { label: "Token", value: patient.token, highlight: true },
+          { label: "Appt ID", value: patient.appointmentId },
+          { label: "Department", value: patient.department },
+          { label: "Priority", value: <PriorityPill priority={patient.priority} /> },
+          { label: "Age / Gender", value: `${patient.age || "—"} / ${patient.gender || "—"}` },
+          { label: "Mobile", value: patient.mobile || "—" },
+        ].map((item) => (
+          <div key={item.label} className={`rounded-xl p-3 ${isEmergency ? "bg-white border border-red-100" : "bg-white border border-emerald-100"}`}>
+            <p className="text-[10px] font-black uppercase tracking-wide text-slate-400 mb-1">{item.label}</p>
+            <div className={`text-sm font-black ${item.highlight ? (isEmergency ? "text-red-700 text-base" : "text-blue-700 text-base") : "text-slate-900"}`}>
+              {item.value}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Symptoms + Hospital */}
+      <div className="mt-3 flex flex-wrap gap-3">
+        {patient.symptoms && (
+          <div className={`flex-1 min-w-[200px] rounded-xl p-3 ${isEmergency ? "bg-white border border-red-100" : "bg-white border border-emerald-100"}`}>
+            <p className="text-[10px] font-black uppercase tracking-wide text-slate-400 mb-1">Chief Complaint</p>
+            <p className="text-sm font-semibold text-slate-700">{patient.symptoms}</p>
+          </div>
+        )}
+        {patient.hospitalName && (
+          <div className={`rounded-xl p-3 ${isEmergency ? "bg-white border border-red-100" : "bg-white border border-emerald-100"}`}>
+            <p className="text-[10px] font-black uppercase tracking-wide text-slate-400 mb-1">Assigned Hospital</p>
+            <p className="text-sm font-black text-slate-900 flex items-center gap-1.5">
+              <MdLocalHospital className={isEmergency ? "text-red-500" : "text-emerald-500"} />
+              {patient.hospitalName}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Emergency action */}
+      {isEmergency && (
+        <div className="mt-4 flex gap-3">
+          <a href="tel:108" className="flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-black text-white hover:bg-red-700 transition">
+            <FaAmbulance size={14} /> Call Ambulance (108)
+          </a>
+          <span className="flex items-center gap-2 rounded-xl bg-red-100 px-4 py-2.5 text-xs font-black text-red-700">
+            <MdEmergency /> Prepare Emergency Bay
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── PATIENT VIEW (token tracker) ─────────────────────────────────────────────
-function PatientView({ queue, departments, loading }) {
-  const [search, setSearch] = useState("");
+function PatientView({ queue, departments, loading, incomingPatient }) {
+  const [search, setSearch] = useState(incomingPatient?.token || "");
   const found = queue.find(
     (r) => r.token?.toLowerCase() === search.trim().toLowerCase()
   );
@@ -45,6 +162,29 @@ function PatientView({ queue, departments, loading }) {
 
   return (
     <div className="space-y-6">
+
+      {/* If arriving from booking, show my token card immediately */}
+      {incomingPatient?.token && (
+        <div className="card p-6 animate-fade-in-up" style={{ background: "linear-gradient(135deg, #1e3a8a, #2563eb)", color: "white" }}>
+          <p className="text-xs font-black uppercase tracking-wider text-blue-200 mb-1">Your Token Number</p>
+          <p className="text-5xl font-black">{incomingPatient.token}</p>
+          <p className="mt-2 text-lg font-semibold text-blue-100">
+            {incomingPatient.patientName} — {incomingPatient.department}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">
+              Appointment: {incomingPatient.appointmentId}
+            </span>
+            <span className={`rounded-full px-3 py-1 text-xs font-black ${
+              (incomingPatient.priority === "High" || incomingPatient.priority === "Critical")
+                ? "bg-red-500"
+                : "bg-emerald-500/80"
+            }`}>
+              Priority: {incomingPatient.priority}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Token Search */}
       <div className="card p-6 animate-fade-in-up">
@@ -147,23 +287,28 @@ function PatientView({ queue, departments, loading }) {
                 ) : queue.length === 0 ? (
                   <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400 font-semibold">No patients in queue</td></tr>
                 ) : (
-                  queue.map((row) => (
-                    <tr key={row.token} className="hover:bg-slate-50 transition">
-                      <td className="px-4 py-4 font-black text-slate-950">{row.token}</td>
-                      <td className="px-4 py-4 font-bold text-slate-700">{row.patient}</td>
-                      <td className="px-4 py-4 font-bold text-slate-700">{row.department}</td>
-                      <td className="px-4 py-4">
-                        <span className={`rounded-full px-3 py-1 text-xs font-black ${statusBadge(row.priority)}`}>
-                          {row.priority}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className={`rounded-full px-3 py-1 text-xs font-black ${statusBadge(row.status)}`}>
-                          {row.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                  queue.map((row) => {
+                    const isNew = incomingPatient?.token && row.token === incomingPatient.token;
+                    return (
+                      <tr key={row.token} className={`transition ${isNew ? "bg-blue-50 ring-2 ring-inset ring-blue-400" : "hover:bg-slate-50"}`}>
+                        <td className={`px-4 py-4 font-black ${isNew ? "text-blue-700 text-base" : "text-slate-950"}`}>
+                          {row.token} {isNew && <span className="ml-1 rounded-full bg-blue-600 px-1.5 py-0.5 text-[9px] font-black text-white">NEW</span>}
+                        </td>
+                        <td className="px-4 py-4 font-bold text-slate-700">{row.patient}</td>
+                        <td className="px-4 py-4 font-bold text-slate-700">{row.department}</td>
+                        <td className="px-4 py-4">
+                          <span className={`rounded-full px-3 py-1 text-xs font-black ${statusBadge(row.priority)}`}>
+                            {row.priority}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className={`rounded-full px-3 py-1 text-xs font-black ${statusBadge(row.status)}`}>
+                            {row.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -197,7 +342,7 @@ function PatientView({ queue, departments, loading }) {
 }
 
 // ─── PRIVATE HOSPITAL VIEW ────────────────────────────────────────────────────
-function PrivateHospitalView({ dashboard, loading }) {
+function PrivateHospitalView({ dashboard, loading, incomingPatient }) {
   const kpis = [
     { label: "Active Patients",   value: dashboard?.currentPatients ?? "126", icon: FaUserMd,   color: "text-blue-600" },
     { label: "Doctors on Duty",   value: dashboard?.doctorsOnDuty ?? "32",    icon: FaBrain,    color: "text-purple-600" },
@@ -216,8 +361,69 @@ function PrivateHospitalView({ dashboard, loading }) {
     { name: "Radiology",       doctors: 2, patients: 14, beds: 0,  status: "Moderate" },
   ];
 
+  const isEmergency = incomingPatient?.priority === "High" || incomingPatient?.priority === "Critical";
+
   return (
     <div className="space-y-6">
+
+      {/* ── Incoming Appointment from SmartHealthAI ── */}
+      {incomingPatient && (
+        <div className={`rounded-2xl border-2 p-6 animate-fade-in-up ${isEmergency ? "border-red-300 bg-red-50" : "border-blue-200 bg-blue-50"}`}>
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${isEmergency ? "bg-red-500" : "bg-blue-600"} text-white shadow`}>
+                {isEmergency ? <MdEmergency size={22} /> : <FaCheckCircle size={20} />}
+              </div>
+              <div>
+                <p className={`text-xs font-black uppercase tracking-wide ${isEmergency ? "text-red-600" : "text-blue-600"}`}>
+                  {isEmergency ? "🚨 Emergency Booking via SmartHealthAI" : "✅ New OPD Appointment via SmartHealthAI"}
+                </p>
+                <p className="text-xl font-black text-slate-900">{incomingPatient.patientName}</p>
+              </div>
+            </div>
+            {isEmergency && (
+              <span className="animate-pulse rounded-full bg-red-600 px-3 py-1.5 text-xs font-black text-white">
+                URGENT — PREPARE BAY
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {[
+              { label: "Token / Slot", value: incomingPatient.token, big: true },
+              { label: "Appointment ID", value: incomingPatient.appointmentId },
+              { label: "Department", value: incomingPatient.department },
+              { label: "Priority", value: <PriorityPill priority={incomingPatient.priority} /> },
+              { label: "Age / Gender", value: `${incomingPatient.age || "—"} / ${incomingPatient.gender || "—"}` },
+              { label: "Mobile", value: incomingPatient.mobile || "—" },
+            ].map((item) => (
+              <div key={item.label} className="rounded-xl bg-white border border-slate-100 p-3 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-wide text-slate-400 mb-1">{item.label}</p>
+                <p className={`font-black ${item.big ? "text-blue-700 text-lg" : "text-slate-900 text-sm"}`}>{item.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {incomingPatient.symptoms && (
+            <div className="mt-3 rounded-xl bg-white border border-slate-100 p-3 shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-wide text-slate-400 mb-1">Chief Complaint (AI Assessed)</p>
+              <p className="text-sm font-semibold text-slate-700">{incomingPatient.symptoms}</p>
+            </div>
+          )}
+
+          {isEmergency && (
+            <div className="mt-4 flex gap-3">
+              <a href="tel:108" className="flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-black text-white hover:bg-red-700 transition">
+                <FaAmbulance /> Call 108
+              </a>
+              <span className="flex items-center gap-2 rounded-xl bg-orange-100 px-4 py-2.5 text-xs font-black text-orange-700">
+                Alert On-Call Doctor
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* KPI Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 stagger-children">
         {kpis.map((k) => {
@@ -257,19 +463,25 @@ function PrivateHospitalView({ dashboard, loading }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {depts.map((d) => (
-                  <tr key={d.name} className="hover:bg-slate-50 transition">
-                    <td className="px-4 py-4 font-black text-slate-950">{d.name}</td>
-                    <td className="px-4 py-4 font-bold text-slate-700">{d.doctors}</td>
-                    <td className="px-4 py-4 font-bold text-slate-700">{d.patients}</td>
-                    <td className="px-4 py-4 font-bold text-slate-700">{d.beds}</td>
-                    <td className="px-4 py-4">
-                      <span className={`rounded-full px-3 py-1 text-xs font-black ${statusBadge(d.status)}`}>
-                        {d.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {depts.map((d) => {
+                  const isIncomingDept = incomingPatient?.department &&
+                    d.name.toLowerCase().includes(incomingPatient.department.toLowerCase());
+                  return (
+                    <tr key={d.name} className={`transition ${isIncomingDept ? "bg-blue-50" : "hover:bg-slate-50"}`}>
+                      <td className={`px-4 py-4 font-black ${isIncomingDept ? "text-blue-700" : "text-slate-950"}`}>
+                        {d.name} {isIncomingDept && <span className="ml-1 rounded-full bg-blue-600 px-1.5 py-0.5 text-[9px] font-black text-white">↑ NEW PATIENT</span>}
+                      </td>
+                      <td className="px-4 py-4 font-bold text-slate-700">{d.doctors}</td>
+                      <td className="px-4 py-4 font-bold text-slate-700">{isIncomingDept ? d.patients + 1 : d.patients}</td>
+                      <td className="px-4 py-4 font-bold text-slate-700">{d.beds}</td>
+                      <td className="px-4 py-4">
+                        <span className={`rounded-full px-3 py-1 text-xs font-black ${statusBadge(d.status)}`}>
+                          {d.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -296,7 +508,7 @@ function PrivateHospitalView({ dashboard, loading }) {
 }
 
 // ─── GOVERNMENT RECEPTION VIEW ────────────────────────────────────────────────
-function GovernmentView({ queue, departments, stats, onRefresh, loading }) {
+function GovernmentView({ queue, departments, stats, onRefresh, loading, incomingPatient }) {
   const [formData, setFormData] = useState({
     patientName: "", age: "", mobileNumber: "", aadhaarId: "",
     gender: "", department: "General Medicine", symptoms: "", priority: "Low",
@@ -347,8 +559,68 @@ function GovernmentView({ queue, departments, stats, onRefresh, loading }) {
   const inputCls =
     "mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold text-slate-900 outline-none transition focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-50";
 
+  const isEmergency = incomingPatient?.priority === "High" || incomingPatient?.priority === "Critical";
+
   return (
     <div className="space-y-6">
+
+      {/* ── Incoming from SmartHealthAI patient portal ── */}
+      {incomingPatient && (
+        <div className={`rounded-2xl border-2 p-6 animate-fade-in-up ${isEmergency ? "border-red-300 bg-red-50" : "border-blue-200 bg-blue-50"}`}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${isEmergency ? "bg-red-600" : "bg-blue-600"} text-white shadow`}>
+              {isEmergency ? <MdEmergency size={22} /> : <FaCheckCircle size={20} />}
+            </div>
+            <div>
+              <p className={`text-xs font-black uppercase tracking-wide ${isEmergency ? "text-red-600" : "text-blue-600"}`}>
+                {isEmergency ? "🚨 Emergency Patient — Action Required" : "✅ SmartHealthAI Pre-Registered Patient"}
+              </p>
+              <p className="text-xl font-black text-slate-900">{incomingPatient.patientName}</p>
+            </div>
+            {isEmergency && (
+              <span className="ml-auto animate-pulse rounded-full bg-red-600 px-3 py-1.5 text-xs font-black text-white">
+                HIGH PRIORITY
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {[
+              { label: "Token Assigned", value: incomingPatient.token, big: true },
+              { label: "Department", value: incomingPatient.department },
+              { label: "Priority", value: <PriorityPill priority={incomingPatient.priority} /> },
+              { label: "Age / Gender", value: `${incomingPatient.age || "—"} / ${incomingPatient.gender || "—"}` },
+              { label: "Mobile", value: incomingPatient.mobile || "—" },
+            ].map((item) => (
+              <div key={item.label} className="rounded-xl bg-white border border-slate-100 p-3 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-wide text-slate-400 mb-1">{item.label}</p>
+                <p className={`font-black ${item.big ? "text-blue-700 text-xl" : "text-slate-900 text-sm"}`}>{item.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {incomingPatient.symptoms && (
+            <div className="mt-3 rounded-xl bg-white border border-slate-100 p-3">
+              <p className="text-[10px] font-black uppercase tracking-wide text-slate-400 mb-1">Chief Complaint</p>
+              <p className="text-sm font-semibold text-slate-700">{incomingPatient.symptoms}</p>
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 rounded-xl bg-emerald-100 px-4 py-2.5 text-xs font-black text-emerald-700">
+              <FaCheckCircle /> Pre-registered via Patient Portal
+            </div>
+            <div className="flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-700">
+              Appt: {incomingPatient.appointmentId}
+            </div>
+            {isEmergency && (
+              <a href="tel:108" className="flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-xs font-black text-white hover:bg-red-700 transition">
+                <FaAmbulance /> Emergency: 108
+              </a>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Header band */}
       <div className="card p-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between animate-fade-in-up">
@@ -464,7 +736,12 @@ function GovernmentView({ queue, departments, stats, onRefresh, loading }) {
         <section className="card p-6 animate-fade-in-up">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-black text-slate-950">Live Token Queue</h2>
-            <span className="badge badge-green text-xs">● Live</span>
+            <div className="flex items-center gap-2">
+              <button onClick={onRefresh} className="flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-600 hover:bg-slate-200 transition">
+                <FaSync size={10} /> Refresh
+              </button>
+              <span className="badge badge-green text-xs">● Live</span>
+            </div>
           </div>
           {latestToken && (
             <div className="mt-4 rounded-2xl bg-blue-50 p-4 ring-1 ring-blue-100 animate-fade-in">
@@ -493,19 +770,25 @@ function GovernmentView({ queue, departments, stats, onRefresh, loading }) {
                   ) : queue.length === 0 ? (
                     <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400 font-semibold">No patients in queue</td></tr>
                   ) : (
-                    queue.map((row) => (
-                      <tr key={row.token} className="hover:bg-slate-50 transition">
-                        <td className="px-3 py-3 font-black text-slate-950">{row.token}</td>
-                        <td className="px-3 py-3 font-bold text-slate-700 max-w-[100px] truncate">{row.patient}</td>
-                        <td className="px-3 py-3 font-bold text-slate-700 text-xs">{row.department}</td>
-                        <td className="px-3 py-3">
-                          <span className={`rounded-full px-2 py-1 text-xs font-black ${statusBadge(row.priority)}`}>{row.priority}</span>
-                        </td>
-                        <td className="px-3 py-3">
-                          <span className={`rounded-full px-2 py-1 text-xs font-black ${statusBadge(row.status)}`}>{row.status}</span>
-                        </td>
-                      </tr>
-                    ))
+                    queue.map((row) => {
+                      const isNew = incomingPatient?.token && row.token === incomingPatient.token;
+                      return (
+                        <tr key={row.token} className={`transition ${isNew ? "bg-blue-50 ring-2 ring-inset ring-blue-400" : "hover:bg-slate-50"}`}>
+                          <td className={`px-3 py-3 font-black ${isNew ? "text-blue-700" : "text-slate-950"}`}>
+                            {row.token}
+                            {isNew && <span className="ml-1 rounded-full bg-blue-600 px-1.5 py-0.5 text-[9px] font-black text-white">NEW</span>}
+                          </td>
+                          <td className="px-3 py-3 font-bold text-slate-700 max-w-[100px] truncate">{row.patient}</td>
+                          <td className="px-3 py-3 font-bold text-slate-700 text-xs">{row.department}</td>
+                          <td className="px-3 py-3">
+                            <span className={`rounded-full px-2 py-1 text-xs font-black ${statusBadge(row.priority)}`}>{row.priority}</span>
+                          </td>
+                          <td className="px-3 py-3">
+                            <span className={`rounded-full px-2 py-1 text-xs font-black ${statusBadge(row.status)}`}>{row.status}</span>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -539,13 +822,26 @@ function GovernmentView({ queue, departments, stats, onRefresh, loading }) {
 
 // ─── MAIN PAGE ─────────────────────────────────────────────────────────────────
 export default function Hospital() {
-  const [activeTab, setActiveTab] = useState("patient");
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  // Read ?tab= from URL (set by patient booking flow)
+  const urlTab = searchParams.get("tab"); // "government" | "private"
+  const incomingPatient = location.state || null; // Patient data from booking
+
+  const [activeTab, setActiveTab] = useState(urlTab || "patient");
+  const [showIncomingCard, setShowIncomingCard] = useState(!!incomingPatient);
 
   const [dashboard,    setDashboard]    = useState(null);
   const [queue,        setQueue]        = useState([]);
   const [departments,  setDepartments]  = useState([]);
   const [stats,        setStats]        = useState(null);
   const [loading,      setLoading]      = useState(true);
+
+  // Auto-switch tab when URL changes
+  useEffect(() => {
+    if (urlTab) setActiveTab(urlTab);
+  }, [urlTab]);
 
   const loadData = useCallback(async () => {
     try {
@@ -573,23 +869,26 @@ export default function Hospital() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // The incoming patient card to pass into tab components
+  const activeIncomingPatient = showIncomingCard ? incomingPatient : null;
+
   return (
     <main className="bg-slate-50 min-h-screen">
       <section className="max-w-7xl mx-auto px-6 py-10 lg:px-8">
 
         {/* Page Header */}
         <div
-          className="overflow-hidden rounded-3xl p-8 text-white shadow-2xl lg:p-12 mb-8"
+          className="overflow-hidden rounded-2xl p-6 text-white shadow-lg mb-6 lg:p-8"
           style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 60%, #0f172a 100%)" }}
         >
           <span className="badge" style={{ background: "rgba(255,255,255,0.12)", color: "#93c5fd", borderColor: "rgba(255,255,255,0.2)" }}>
             Hospital Operations
           </span>
-          <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-5xl">
-            SmartHealthAI Dashboard
+          <h1 className="mt-3 text-2xl font-black tracking-tight sm:text-4xl">
+            SmartHealthAI Hospital Dashboard
           </h1>
-          <p className="mt-3 max-w-3xl text-base leading-7 text-blue-100">
-            Track your token, check wait times, or manage patient registration — all in one place for both private and government hospitals.
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">
+            Track tokens, manage patient registration, and monitor private hospital operations — all in one unified platform.
           </p>
         </div>
 
@@ -598,26 +897,46 @@ export default function Hospital() {
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.key;
+            const hasIncoming = showIncomingCard && incomingPatient && (
+              (tab.key === "government" && urlTab === "government") ||
+              (tab.key === "private" && urlTab === "private")
+            );
             return (
               <button
                 key={tab.key}
                 id={`tab-${tab.key}`}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2 px-5 py-3 rounded-xl font-black text-sm whitespace-nowrap transition-all duration-200 ${
+                className={`relative flex items-center gap-2 px-5 py-3 rounded-xl font-black text-sm whitespace-nowrap transition-all duration-200 ${
                   active
                     ? "bg-blue-600 text-white shadow-lg shadow-blue-200"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 }`}
               >
                 <Icon size={15} /> {tab.label}
+                {hasIncoming && (
+                  <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-red-500 flex items-center justify-center text-[9px] font-black text-white animate-pulse">1</span>
+                )}
               </button>
             );
           })}
         </div>
 
         {/* Tab Content */}
-        {activeTab === "patient"    && <PatientView queue={queue} departments={departments} loading={loading} />}
-        {activeTab === "private"    && <PrivateHospitalView dashboard={dashboard} loading={loading} />}
+        {activeTab === "patient" && (
+          <PatientView
+            queue={queue}
+            departments={departments}
+            loading={loading}
+            incomingPatient={urlTab === "patient" ? activeIncomingPatient : null}
+          />
+        )}
+        {activeTab === "private" && (
+          <PrivateHospitalView
+            dashboard={dashboard}
+            loading={loading}
+            incomingPatient={urlTab === "private" ? activeIncomingPatient : null}
+          />
+        )}
         {activeTab === "government" && (
           <GovernmentView
             queue={queue}
@@ -625,6 +944,7 @@ export default function Hospital() {
             stats={stats}
             onRefresh={loadData}
             loading={loading}
+            incomingPatient={urlTab === "government" ? activeIncomingPatient : null}
           />
         )}
       </section>
