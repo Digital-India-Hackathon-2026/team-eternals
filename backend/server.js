@@ -509,8 +509,27 @@ app.post("/api/patient/register", async (req, res) => {
   }
 });
 
+/** Get and increment the PRIVATE token counter atomically */
+async function nextPrivateToken() {
+  const { data, error } = await supabase
+    .from("private_token_counter")
+    .select("current_value")
+    .eq("id", 1)
+    .single();
+
+  if (error) throw new Error("Private token counter read failed: " + error.message);
+
+  const next = data.current_value + 1;
+  await supabase
+    .from("private_token_counter")
+    .update({ current_value: next })
+    .eq("id", 1);
+
+  return `P${String(next).padStart(3, "0")}`;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Patient — Book Hospital Appointment
+// Patient — Book Hospital Appointment (Government + Private → both write to DB)
 // ─────────────────────────────────────────────────────────────────────────────
 app.post("/api/patient/book", async (req, res) => {
   const {
@@ -524,15 +543,9 @@ app.post("/api/patient/book", async (req, res) => {
   }
 
   try {
-    // Generate appointment ID
     const appointmentId = `APT-${Date.now().toString(36).toUpperCase()}`;
-    const queueNumber = `Q${Math.floor(Math.random() * 89) + 10}`;
-    const slotMinutes = Math.floor(Math.random() * 50) + 15;
-    const now = new Date();
-    const slotTime = new Date(now.getTime() + slotMinutes * 60000);
-    const estimatedTime = slotTime.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 
-    // If government hospital, register patient in the Supabase patients table
+    // ── Government → patients table + dept queue ────────────────────────────
     if (hospitalType === "Government") {
       const token = await nextToken();
       const waitMinutes = 10 + Math.floor(Math.random() * 30);
@@ -544,10 +557,7 @@ app.post("/api/patient/book", async (req, res) => {
         department: department || "General Medicine",
         priority: priority || "Low",
         status: "Waiting",
-        age,
-        mobile,
-        gender,
-        symptoms,
+        age, mobile, gender, symptoms,
       });
 
       if (insertError) throw new Error(insertError.message);
@@ -569,11 +579,7 @@ app.post("/api/patient/book", async (req, res) => {
       }
 
       // Update reception stats
-      await supabase
-        .from("reception_stats")
-        .select("*")
-        .eq("id", 1)
-        .single()
+      await supabase.from("reception_stats").select("*").eq("id", 1).single()
         .then(({ data }) => {
           if (data) {
             return supabase.from("reception_stats").update({
@@ -582,31 +588,237 @@ app.post("/api/patient/book", async (req, res) => {
               emergency_cases: priority === "High" ? data.emergency_cases + 1 : data.emergency_cases,
             }).eq("id", 1);
           }
-        })
-        .catch(() => {});
+        }).catch(() => {});
 
       return res.json({
-        success: true,
-        appointmentId,
-        token,
-        queueNumber: token,
-        estimatedTime: estimatedWaitingTime,
-        hospitalType: "Government",
+        success: true, appointmentId, token,
+        queueNumber: token, estimatedTime: estimatedWaitingTime, hospitalType: "Government",
       });
     }
 
-    // Private hospital: just return confirmation (no DB insert needed for demo)
-    res.json({
-      success: true,
-      appointmentId,
-      token: `P${Math.floor(Math.random() * 900) + 100}`,
-      queueNumber,
-      estimatedTime,
-      hospitalType: "Private",
+    // ── Private → private_queue table + private_stats ───────────────────────
+    const token = await nextPrivateToken();
+    const waitMinutes = 15 + Math.floor(Math.random() * 25);
+    const estimatedWaitingTime = `${waitMinutes} min`;
+
+    const { error: pvtInsertError } = await supabase.from("private_queue").insert({
+      token,
+      patient_name:     patientName,
+      department:       department || "General Medicine",
+      priority:         priority || "Low",
+      status:           "Waiting",
+      appointment_type: "OPD",
+      age, mobile, gender, symptoms,
+      hospital_id:      hospitalId || null,
     });
+
+    if (pvtInsertError) throw new Error(pvtInsertError.message);
+
+    // Update hospital queue count
+    await supabase
+      .from("hospitals")
+      .select("queue_count")
+      .eq("id", hospitalId)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          return supabase.from("hospitals").update({ queue_count: data.queue_count + 1 }).eq("id", hospitalId);
+        }
+      }).catch(() => {});
+
+    // Update private stats
+    await supabase.from("private_stats").select("*").eq("id", 1).single()
+      .then(({ data }) => {
+        if (data) {
+          return supabase.from("private_stats").update({
+            appointments_today: data.appointments_today + 1,
+            waiting_patients:   data.waiting_patients + 1,
+          }).eq("id", 1);
+        }
+      }).catch(() => {});
+
+    return res.json({
+      success: true, appointmentId, token,
+      queueNumber: token, estimatedTime: estimatedWaitingTime, hospitalType: "Private",
+    });
+
   } catch (error) {
     console.error("Booking error:", error);
     res.status(500).json({ success: false, message: error.message || "Booking failed." });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Private Hospital — Walk-in OPD Registration
+// ─────────────────────────────────────────────────────────────────────────────
+app.post("/api/private/register", async (req, res) => {
+  const { patientName, age, mobileNumber, gender, department, symptoms, priority, appointmentType } = req.body;
+
+  if (!patientName || !gender || !symptoms) {
+    return res.status(400).json({ success: false, message: "Missing required fields." });
+  }
+
+  try {
+    const token = await nextPrivateToken();
+    const waitMinutes = 15 + Math.floor(Math.random() * 25);
+    const estimatedWaitingTime = `${waitMinutes} min`;
+
+    const { error: insertError } = await supabase.from("private_queue").insert({
+      token,
+      patient_name:     patientName,
+      department:       department || "General Medicine",
+      priority:         priority || "Low",
+      status:           "Waiting",
+      appointment_type: appointmentType || "OPD",
+      age, mobile: mobileNumber, gender, symptoms,
+    });
+
+    if (insertError) throw new Error(insertError.message);
+
+    // Update private stats
+    await supabase.from("private_stats").select("*").eq("id", 1).single()
+      .then(({ data }) => {
+        if (data) {
+          return supabase.from("private_stats").update({
+            appointments_today: data.appointments_today + 1,
+            waiting_patients:   data.waiting_patients + 1,
+          }).eq("id", 1);
+        }
+      }).catch(() => {});
+
+    res.json({
+      success: true,
+      message: "Patient registered successfully",
+      token, estimatedWaitingTime,
+    });
+  } catch (error) {
+    console.error("Private registration error:", error);
+    res.status(500).json({ success: false, message: error.message || "Registration failed." });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Private Hospital — Live OPD Queue
+// ─────────────────────────────────────────────────────────────────────────────
+app.get("/api/private/queue", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("private_queue")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if (error) throw new Error(error.message);
+
+    res.json((data || []).map((row) => ({
+      token:           row.token,
+      patient:         row.patient_name,
+      department:      row.department,
+      priority:        row.priority,
+      status:          row.status,
+      type:            row.appointment_type,
+      age:             row.age,
+      mobile:          row.mobile,
+      gender:          row.gender,
+    })));
+  } catch (error) {
+    console.error("Private queue fetch error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Private Hospital — Stats
+// ─────────────────────────────────────────────────────────────────────────────
+app.get("/api/private/stats", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("private_stats")
+      .select("*")
+      .eq("id", 1)
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    // get live waiting count
+    const { count: waitingCount } = await supabase
+      .from("private_queue")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "Waiting");
+
+    res.json({
+      appointmentsToday: data.appointments_today,
+      waitingPatients:   waitingCount ?? data.waiting_patients,
+      doctorsOnDuty:     data.doctors_on_duty,
+      bedsAvailable:     data.beds_available,
+    });
+  } catch (error) {
+    console.error("Private stats fetch error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hospitals — List All (with optional ?type=Government|Private&dept=Cardiology)
+// ─────────────────────────────────────────────────────────────────────────────
+app.get("/api/hospitals", async (req, res) => {
+  try {
+    const { type, dept } = req.query;
+    let query = supabase.from("hospitals").select("*").eq("is_active", true);
+
+    if (type) query = query.eq("type", type);
+
+    const { data, error } = await query.order("name");
+    if (error) throw new Error(error.message);
+
+    let result = data || [];
+
+    // Filter by department if specified
+    if (dept) {
+      result = result.filter((h) =>
+        h.departments?.some((d) => d.toLowerCase().includes(dept.toLowerCase()))
+      );
+    }
+
+    res.json(result.map((h) => ({
+      id:            h.id,
+      name:          h.name,
+      type:          h.type,
+      address:       h.address,
+      lat:           h.lat,
+      lng:           h.lng,
+      phone:         h.phone,
+      departments:   h.departments || [],
+      doctors:       h.doctors,
+      emergencyBeds: h.emergency_beds,
+      totalBeds:     h.total_beds,
+      waitTime:      h.wait_time,
+      queue:         h.queue_count,
+      rating:        h.rating,
+      accredited:    h.accredited,
+    })));
+  } catch (error) {
+    console.error("Hospitals fetch error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hospitals — Update Queue Count (called after booking)
+// ─────────────────────────────────────────────────────────────────────────────
+app.patch("/api/hospitals/:id/queue", async (req, res) => {
+  const { id } = req.params;
+  const { delta = 1 } = req.body; // +1 on booking, -1 on discharge
+
+  try {
+    const { data: h } = await supabase.from("hospitals").select("queue_count").eq("id", id).single();
+    if (!h) return res.status(404).json({ error: "Hospital not found" });
+
+    const newCount = Math.max(0, (h.queue_count || 0) + delta);
+    await supabase.from("hospitals").update({ queue_count: newCount }).eq("id", id);
+
+    res.json({ success: true, queue_count: newCount });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

@@ -75,6 +75,41 @@ export function fetchHospitalDashboard() {
 }
 
 // -----------------------------------------------
+// Private Hospital — Walk-in OPD Registration
+// -----------------------------------------------
+export function registerPrivatePatient({ patientName, age, mobileNumber, gender, department, symptoms, priority, appointmentType }) {
+  return request("/private/register", {
+    method: "POST",
+    body: JSON.stringify({ patientName, age, mobileNumber, gender, department, symptoms, priority, appointmentType }),
+  });
+}
+
+// -----------------------------------------------
+// Private Hospital — Live OPD Queue
+// -----------------------------------------------
+export function fetchPrivateQueue() {
+  return request("/private/queue");
+}
+
+// -----------------------------------------------
+// Private Hospital — Stats
+// -----------------------------------------------
+export function fetchPrivateStats() {
+  return request("/private/stats");
+}
+
+// -----------------------------------------------
+// Hospitals — List all (optionally filtered)
+// -----------------------------------------------
+export function fetchHospitals({ type, dept } = {}) {
+  const params = new URLSearchParams();
+  if (type) params.set("type", type);
+  if (dept) params.set("dept", dept);
+  const qs = params.toString();
+  return request(`/hospitals${qs ? "?" + qs : ""}`);
+}
+
+// -----------------------------------------------
 // Patient — Register Details (Step 1)
 // -----------------------------------------------
 export function registerPatientDetails({ name, age, gender, mobile }) {
@@ -85,7 +120,7 @@ export function registerPatientDetails({ name, age, gender, mobile }) {
 }
 
 // -----------------------------------------------
-// Patient — Book Hospital (Step 6)
+// Patient — Book Hospital (Step 5)
 // -----------------------------------------------
 export function bookHospital({ patientName, age, mobile, gender, hospitalId, hospitalName, hospitalType, department, priority, symptoms, aiSummary }) {
   return request("/patient/book", {

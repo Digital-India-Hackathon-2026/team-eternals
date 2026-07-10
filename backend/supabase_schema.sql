@@ -27,17 +27,11 @@ CREATE TABLE IF NOT EXISTS token_counter (
 
 -- Seed with starting value (only inserts if empty)
 INSERT INTO token_counter (id, current_value)
-VALUES (1, 105)
+VALUES (1, 100)
 ON CONFLICT (id) DO NOTHING;
 
--- ── 3. Seed initial patients ─────────────────────────────────
-INSERT INTO patients (token, patient_name, department, priority, status)
-VALUES
-  ('A101', 'Ravi Kumar',   'Cardiology',       'High',   'Waiting'),
-  ('A102', 'Priya Sharma', 'Dermatology',      'Low',    'In Consultation'),
-  ('A103', 'Rahul Mehta',  'Orthopedics',      'Medium', 'Completed'),
-  ('A104', 'Saira Begum',  'General Medicine', 'Medium', 'Waiting')
-ON CONFLICT (token) DO NOTHING;
+-- ── 3. No initial patients (start fresh) ────────────────────
+-- Patients will be added via the registration form
 
 -- ── 4. Department Queues ─────────────────────────────────────
 CREATE TABLE IF NOT EXISTS department_queues (
@@ -50,20 +44,20 @@ CREATE TABLE IF NOT EXISTS department_queues (
 
 INSERT INTO department_queues (department, queue_count, wait_time, status)
 VALUES
-  ('General Medicine', 18, '35 min', 'Busy'),
-  ('Cardiology',       14, '28 min', 'Busy'),
-  ('Neurology',         9, '22 min', 'Moderate'),
-  ('Orthopedics',      11, '25 min', 'Moderate'),
-  ('Dermatology',       5, '12 min', 'Available')
+  ('General Medicine', 0, '0 min', 'Available'),
+  ('Cardiology',       0, '0 min', 'Available'),
+  ('Neurology',        0, '0 min', 'Available'),
+  ('Orthopedics',      0, '0 min', 'Available'),
+  ('Dermatology',      0, '0 min', 'Available')
 ON CONFLICT (department) DO NOTHING;
 
 -- ── 5. Reception Stats (single row, mutated on registration) ─
 CREATE TABLE IF NOT EXISTS reception_stats (
   id                         INT PRIMARY KEY DEFAULT 1,
-  patients_registered_today  INT NOT NULL DEFAULT 148,
-  waiting_patients           INT NOT NULL DEFAULT 36,
-  completed_consultations    INT NOT NULL DEFAULT 92,
-  emergency_cases            INT NOT NULL DEFAULT 11
+  patients_registered_today  INT NOT NULL DEFAULT 0,
+  waiting_patients           INT NOT NULL DEFAULT 0,
+  completed_consultations    INT NOT NULL DEFAULT 0,
+  emergency_cases            INT NOT NULL DEFAULT 0
 );
 
 INSERT INTO reception_stats (id)

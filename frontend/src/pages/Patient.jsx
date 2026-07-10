@@ -113,6 +113,19 @@ function StepIndicator({ currentStep }) {
   );
 }
 
+// ─── Shared field wrapper (must be at module level to preserve focus) ────────
+function Field({ id, label, icon: Icon, error, children }) {
+  return (
+    <div>
+      <label htmlFor={id} className="flex items-center gap-2 mb-2 text-xs font-black uppercase tracking-wide text-slate-500">
+        <Icon size={11} /> {label}
+      </label>
+      {children}
+      {error && <p className="mt-1 text-xs text-red-500 font-semibold">{error}</p>}
+    </div>
+  );
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // STEP 1 — Patient Registration
 // ═════════════════════════════════════════════════════════════════════════════
@@ -145,15 +158,7 @@ function StepPatientDetails({ onNext }) {
     }
   };
 
-  const Field = ({ id, label, icon: Icon, error, children }) => (
-    <div>
-      <label htmlFor={id} className="flex items-center gap-2 mb-2 text-xs font-black uppercase tracking-wide text-slate-500">
-        <Icon size={11} /> {label}
-      </label>
-      {children}
-      {error && <p className="mt-1 text-xs text-red-500 font-semibold">{error}</p>}
-    </div>
-  );
+
 
   return (
     <div className="max-w-2xl mx-auto animate-fade-in-up">
@@ -251,10 +256,12 @@ function StepSymptomChat({ patient, onComplete }) {
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const chatEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
 
   useEffect(() => {
-    if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   }, [messages, loading]);
 
   // Build a fallback triage report if the API doesn't return one
@@ -389,7 +396,7 @@ function StepSymptomChat({ patient, onComplete }) {
 
           {phase === "chat" && (
             <div className="space-y-4">
-              <div className="h-80 overflow-y-auto rounded-xl bg-slate-50 border border-slate-100 p-4 space-y-3">
+              <div ref={chatContainerRef} className="h-80 overflow-y-auto rounded-xl bg-slate-50 border border-slate-100 p-4 space-y-3">
                 {messages.map((msg, i) => (
                   <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                     {msg.role === "assistant" && (
@@ -416,7 +423,6 @@ function StepSymptomChat({ patient, onComplete }) {
                     </div>
                   </div>
                 )}
-                <div ref={chatEndRef} />
               </div>
 
               <form onSubmit={sendMessage} className="flex gap-2">
@@ -902,6 +908,11 @@ export default function Patient() {
   const [hospitals, setHospitals] = useState([]);
   const [selectedHospital, setSelectedHospital] = useState(null);
   const [bookingResult, setBookingResult] = useState(null);
+
+  // Scroll to top on step transitions to prevent viewport focus issues
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [step]);
 
   // Get geolocation when step 4 starts
   const initializeHospitals = useCallback((dept) => {
