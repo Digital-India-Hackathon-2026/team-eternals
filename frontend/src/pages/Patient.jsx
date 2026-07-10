@@ -14,9 +14,16 @@ import WaitTimePrediction from "../components/WaitTimePrediction/WaitTimePredict
 import PatientTimeline from "../components/PatientTimeline/PatientTimeline";
 import AIInsight from "../components/AIInsight/AIInsight";
 import WhyChooseUs from "../components/WhyChooseUs/WhyChooseUs";
+import { getRecommendedHyderabadHospital } from "../components/MapPreview/MapPreview";
 
 export default function Patient() {
   const [report, setReport] = useState(null);
+  const [selectedHospital, setSelectedHospital] = useState(null);
+
+  const handleReport = (nextReport) => {
+    setReport(nextReport);
+    setSelectedHospital(getRecommendedHyderabadHospital(nextReport));
+  };
 
   return (
     <>
@@ -27,7 +34,7 @@ export default function Patient() {
       <div className="bg-slate-50">
         <div className="max-w-7xl mx-auto px-8 py-12">
           <div className="grid lg:grid-cols-2 gap-8">
-            <SymptomForm setReport={setReport} />
+            <SymptomForm setReport={handleReport} />
 
             {report && <ClinicalReport report={report} />}
           </div>
@@ -39,7 +46,11 @@ export default function Patient() {
               <div className="grid lg:grid-cols-2 gap-8 mt-10">
                 <HospitalCard report={report} />
 
-                <MapPreview report={report} />
+                <MapPreview
+                  report={report}
+                  selectedHospital={selectedHospital}
+                  onSelectHospital={setSelectedHospital}
+                />
               </div>
 
               <section className="mt-20">
@@ -57,7 +68,7 @@ export default function Patient() {
                   </p>
                 </div>
 
-                <AppointmentBooking />
+                <AppointmentBooking report={report} />
               </section>
 
               <section className="mt-20">
@@ -78,7 +89,11 @@ export default function Patient() {
                 <AppointmentConfirmation />
               </section>
 
-              <HospitalDetails />
+              <HospitalDetails
+                report={report}
+                selectedHospital={selectedHospital}
+                onSelectHospital={setSelectedHospital}
+              />
 
               <WaitTimePrediction report={report} />
 

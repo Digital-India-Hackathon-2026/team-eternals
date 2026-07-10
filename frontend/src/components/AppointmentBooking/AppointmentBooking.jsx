@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const hospitals = [
   "SmartHealth CityCare Hospital",
@@ -31,16 +31,41 @@ const doctors = [
 
 const timeSlots = ["09:30 AM", "10:15 AM", "11:30 AM", "12:45 PM", "02:00 PM", "04:15 PM"];
 
-export default function AppointmentBooking() {
-  const [selectedHospital, setSelectedHospital] = useState(hospitals[0]);
-  const [selectedDepartment, setSelectedDepartment] = useState(departments[0]);
-  const [selectedDoctor, setSelectedDoctor] = useState(doctors[0].name);
+export default function AppointmentBooking({ report }) {
+  const backendHospital = report?.hospital || report?.recommendedHospital || report?.hospitalName;
+  const backendDepartment = report?.department || report?.recommendedDepartment;
+  const backendDoctor = report?.doctor || report?.recommendedDoctor || report?.doctorName;
+  const backendSlots = report?.appointmentSlots || report?.availableSlots || report?.slots;
+  const hospitalOptions = backendHospital ? [backendHospital, ...hospitals.filter((hospital) => hospital !== backendHospital)] : hospitals;
+  const departmentOptions = backendDepartment ? [backendDepartment, ...departments.filter((department) => department !== backendDepartment)] : departments;
+  const doctorOptions = backendDoctor
+    ? [
+        {
+          name: backendDoctor,
+          specialty: backendDepartment || "Recommended Specialist",
+          experience: report?.doctorExperience || "12 years",
+          availability: report?.doctorAvailability || "Available today",
+        },
+        ...doctors.filter((doctor) => doctor.name !== backendDoctor),
+      ]
+    : doctors;
+  const slotOptions = Array.isArray(backendSlots) && backendSlots.length ? backendSlots : timeSlots;
+  const [selectedHospital, setSelectedHospital] = useState(hospitalOptions[0]);
+  const [selectedDepartment, setSelectedDepartment] = useState(departmentOptions[0]);
+  const [selectedDoctor, setSelectedDoctor] = useState(doctorOptions[0].name);
   const [selectedDate, setSelectedDate] = useState("2026-07-14");
-  const [selectedSlot, setSelectedSlot] = useState(timeSlots[1]);
+  const [selectedSlot, setSelectedSlot] = useState(slotOptions[1] || slotOptions[0]);
   const [patient, setPatient] = useState({ name: "", phone: "", concern: "" });
   const [appointmentId, setAppointmentId] = useState("");
 
-  const selectedDoctorDetails = doctors.find((doctor) => doctor.name === selectedDoctor);
+  const selectedDoctorDetails = doctorOptions.find((doctor) => doctor.name === selectedDoctor);
+
+  useEffect(() => {
+    setSelectedHospital(hospitalOptions[0]);
+    setSelectedDepartment(departmentOptions[0]);
+    setSelectedDoctor(doctorOptions[0].name);
+    setSelectedSlot(slotOptions[1] || slotOptions[0]);
+  }, [report]);
 
   function handlePatientChange(event) {
     const { name, value } = event.target;
@@ -82,7 +107,7 @@ export default function AppointmentBooking() {
                 value={selectedHospital}
                 onChange={(event) => setSelectedHospital(event.target.value)}
               >
-                {hospitals.map((hospital) => (
+                {hospitalOptions.map((hospital) => (
                   <option key={hospital}>{hospital}</option>
                 ))}
               </select>
@@ -95,7 +120,7 @@ export default function AppointmentBooking() {
                 value={selectedDepartment}
                 onChange={(event) => setSelectedDepartment(event.target.value)}
               >
-                {departments.map((department) => (
+                {departmentOptions.map((department) => (
                   <option key={department}>{department}</option>
                 ))}
               </select>
@@ -105,7 +130,7 @@ export default function AppointmentBooking() {
           <div>
             <h3 className="text-xl font-black text-slate-950">Doctor Selection</h3>
             <div className="mt-4 grid gap-4 lg:grid-cols-3">
-              {doctors.map((doctor) => {
+              {doctorOptions.map((doctor) => {
                 const isSelected = selectedDoctor === doctor.name;
 
                 return (
@@ -148,7 +173,7 @@ export default function AppointmentBooking() {
             <div className="rounded-3xl bg-slate-50 p-5 ring-1 ring-slate-200">
               <h3 className="text-sm font-black text-slate-800">Time Slot Cards</h3>
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {timeSlots.map((slot) => (
+                {slotOptions.map((slot) => (
                   <button
                     key={slot}
                     type="button"

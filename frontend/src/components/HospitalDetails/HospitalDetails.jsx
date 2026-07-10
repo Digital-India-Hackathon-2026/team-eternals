@@ -1,7 +1,11 @@
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import {
+  getRecommendedHyderabadHospital,
+  hyderabadHospitals,
+} from "../MapPreview/MapPreview";
 
-const hospital = {
+const defaultHospital = {
   name: "SmartHealth CityCare Hospital",
   type: "Multi-specialty emergency hospital",
   location: "MG Road, Bengaluru",
@@ -91,7 +95,7 @@ function SectionCard({ title, children }) {
   );
 }
 
-function HospitalMap() {
+function HospitalMap({ hospital, onSelectHospital }) {
   return (
     <div className="sticky top-6 overflow-hidden rounded-[2rem] bg-white shadow-xl ring-1 ring-slate-200 lg:min-h-[760px]">
       <div className="border-b border-slate-100 p-6">
@@ -115,31 +119,61 @@ function HospitalMap() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <CircleMarker
-            center={hospital.position}
-            radius={16}
-            pathOptions={{ color: "#2563eb", fillColor: "#3b82f6", fillOpacity: 0.85 }}
-          >
-            <Popup>
-              <strong>{hospital.name}</strong>
-              <br />
-              {hospital.emergency}
-            </Popup>
-          </CircleMarker>
-          <CircleMarker
-            center={[12.978, 77.588]}
-            radius={10}
-            pathOptions={{ color: "#059669", fillColor: "#10b981", fillOpacity: 0.75 }}
-          >
-            <Popup>Ambulance unit available</Popup>
-          </CircleMarker>
+          {hyderabadHospitals.map((item) => {
+            const isActive = item.name === hospital.name;
+
+            return (
+              <CircleMarker
+                key={item.name}
+                center={item.position}
+                radius={isActive ? 18 : 11}
+                pathOptions={{
+                  color: isActive ? "#2563eb" : "#059669",
+                  fillColor: isActive ? "#3b82f6" : "#10b981",
+                  fillOpacity: isActive ? 0.9 : 0.72,
+                }}
+                eventHandlers={{
+                  click: () => onSelectHospital?.(item),
+                }}
+              >
+                <Popup>
+                  <strong>{item.name}</strong>
+                  <br />
+                  Queue: {item.queue}
+                  <br />
+                  Doctors: {item.doctors}
+                  <br />
+                  Beds: {item.beds}
+                  <br />
+                  ETA: {item.eta}
+                </Popup>
+              </CircleMarker>
+            );
+          })}
         </MapContainer>
       </div>
     </div>
   );
 }
 
-export default function HospitalDetails() {
+export default function HospitalDetails({ report, selectedHospital, onSelectHospital }) {
+  const recommendedHospital = getRecommendedHyderabadHospital(report);
+  const activeHospital = selectedHospital || recommendedHospital;
+  const hospital = {
+    ...defaultHospital,
+    ...activeHospital,
+    type: report?.hospitalType || defaultHospital.type,
+    location: report?.address || activeHospital?.address || "Hyderabad, Telangana",
+    phone: report?.phone || report?.contact || defaultHospital.phone,
+    rating: report?.rating || report?.hospitalRating || defaultHospital.rating,
+    reviews: report?.reviews || defaultHospital.reviews,
+    waitTime: report?.waitTime || report?.estimatedWaitTime || activeHospital?.eta || defaultHospital.waitTime,
+    queue: report?.queueLength || report?.queue || activeHospital?.queue || defaultHospital.queue,
+    emergency: activeHospital?.emergencyStatus || report?.emergencyStatus || defaultHospital.emergency,
+    ambulance: report?.ambulanceAvailability || defaultHospital.ambulance,
+    position: activeHospital?.position || defaultHospital.position,
+  };
+
   return (
     <section className="mt-20" id="hospital-details">
       <div className="mb-8 text-center">
@@ -201,7 +235,11 @@ export default function HospitalDetails() {
             <div className="grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4">
               <InfoCard title="Rating" value={`${hospital.rating}/5`} detail={`${hospital.reviews} patient reviews`} />
               <InfoCard title="Queue" value={hospital.queue} detail="Live reception count" tone="amber" />
-              <InfoCard title="Wait Time" value={hospital.waitTime} detail="Estimated OPD waiting" />
+              <InfoCard title="Doctors" value={activeHospital.doctors || "7 doctors"} detail="Available clinicians" tone="emerald" />
+              <InfoCard title="Beds" value={activeHospital.beds || "5 beds"} detail="Available bed capacity" />
+              <InfoCard title="Distance" value={activeHospital.distance || "4.2 km"} detail="Approximate travel distance" />
+              <InfoCard title="ETA" value={activeHospital.eta || hospital.waitTime} detail="Estimated arrival time" />
+              <InfoCard title="Emergency" value={hospital.emergency} detail="Current emergency status" tone="emerald" />
               <InfoCard title="Ambulance" value="Available" detail={hospital.ambulance} tone="emerald" />
             </div>
           </div>
@@ -296,7 +334,7 @@ export default function HospitalDetails() {
           </SectionCard>
         </div>
 
-        <HospitalMap />
+        <HospitalMap hospital={hospital} onSelectHospital={onSelectHospital} />
       </div>
     </section>
   );
